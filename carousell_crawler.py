@@ -1,38 +1,37 @@
-import requests
 import csv
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 from chinese_converter import converter
 
 def carousell_crawler():
+    options = Options()
+    options.add_experimental_option("detach", True)  # Keep browser open
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
     url = "https://tw.carousell.com/categories/women-s-fashion-4/"
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/136.0.0.0 Safari/537.36",
-        "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
-    }
+    driver.get(url)
 
-    response = requests.get(url, headers=headers)
+    input("The browser is open. Click 'Show more results' as many times as you'd like. Press ENTER here when done...\n")
 
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        products = soup.select('div.D_ps')
-        output = []
-        print("Start converting Chinese from Carousell website......")
+    html = driver.page_source
+    soup = BeautifulSoup(html, "html.parser")
+    products = soup.select("div.D_ps")
 
-        for product in products:
-            name = product.select_one('p.D_jg.D_ju')  
-            price = product.select_one('p.D_jt')
-            traditional = name.get_text(strip=True)
-            price = price.get_text(strip=True)
-            simplified = converter(traditional)
-            output.append([traditional, simplified, price])
+    output = []
+    for product in products:
+        traditional = product.select_one('p.D_jg.D_ju').get_text()
+        price = product.select_one('p.D_jt').get_text().split('(')[0].strip()
+        simplified = converter(traditional)
+        output.append([traditional, simplified, price])
 
-        with open('output.csv', 'w', newline='', encoding='utf-8') as myfile:
-            wr = csv.writer(myfile)
-            wr.writerow(["Traditional Chinese", "Simplified Chinese", "Price"])
-            wr.writerows(output)
+    with open('output.csv', 'w', newline='', encoding='utf-8') as myfile:
+        wr = csv.writer(myfile)
+        wr.writerow(["Traditional Chinese", "Simplified Chinese", "Price"])
+        wr.writerows(output)
 
-        print("Successfully save to output!")
-    else:
-        print("Can't load the website.")
+    print("Successfully save to output!")
+
+    #print("Can't load the website.")
